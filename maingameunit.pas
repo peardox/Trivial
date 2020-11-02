@@ -43,9 +43,12 @@ var
   {$ifdef cgeapp}
   procedure WindowBeforeRender(Sender: TUIContainer);
   {$endif}
+  
 implementation
 
+{$ifndef cgeapp}
 {$R *.lfm}
+{$endif}
 
 { TCastleApp }
 

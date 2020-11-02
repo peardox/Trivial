@@ -20,6 +20,14 @@ begin
   CastleApp := TCastleApp.Create(Window);
   CastleApp.RunCGEApplication(Window);
   Window.onBeforeRender := @WindowBeforeRender;
+  Window.onClose := @WindowClose;
+  Window.onMotion := @WindowMotion;
+  Window.onOpen := @WindowOpen;
+  Window.onPress := @WindowPress;
+  Window.onRelease := @WindowRelease;
+  Window.onRender := @WindowRender;
+  Window.onResize := @WindowResize;
+  Window.onUpdate := @WindowUpdate;
   Window.Caption := 'Trivial CGE Standalone Application';
 end;
 

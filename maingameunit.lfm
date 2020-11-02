@@ -17,6 +17,14 @@ object CastleApp: TCastleApp
     Align = alClient
     Options = []
     TabOrder = 0
+    OnOpen = WindowOpen
+    OnClose = WindowClose
     OnBeforeRender = WindowBeforeRender
+    OnRender = WindowRender
+    OnResize = WindowResize
+    OnPress = WindowPress
+    OnRelease = WindowRelease
+    OnMotion = WindowMotion
+    OnUpdate = WindowUpdate
   end
 end

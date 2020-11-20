@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project 
-  name="TrivialApp" 
-  standalone_source="TrivialApp.lpr"
+  name="HoverApp" 
+  standalone_source="HoverApp.lpr"
   game_units="GameInitialize"
-  caption="Trivial Mobile App"
-  qualified_name="com.peardox.trivial.demo">
+  caption="Hover Mobile App"
+  qualified_name="com.peardox.hover.demo">
   <package>
     <include path="README.txt" />
   </package>

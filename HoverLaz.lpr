@@ -1,4 +1,4 @@
-program TrivialLaz;
+program HoverLaz;
 
 {$mode objfpc}{$H+}
 {$ifndef cgeapp}

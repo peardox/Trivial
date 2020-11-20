@@ -47,6 +47,7 @@ var
   {$endif}
   Viewport: TCastleViewport;
   Scene: TCastleScene;
+  colour: Integer;
 
   {$ifdef cgeapp}
   procedure WindowBeforeRender(Sender: TUIContainer);
@@ -59,7 +60,15 @@ var
   procedure WindowResize(Sender: TUIContainer);
   procedure WindowUpdate(Sender: TUIContainer);
   {$endif}
-  
+
+const
+  InitialSet: array [0 .. 2] of String =
+      ('HoverRacer_Red.png',
+       'HoverRacer_Green.png',
+       'HoverRacer_Blue.png');
+
+function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+
 implementation
 
 {$ifndef cgeapp}
@@ -67,6 +76,25 @@ implementation
 {$endif}
 
 { TCastleApp }
+
+function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+var
+  TextureNode: TImageTextureNode;
+  AppearanceNode: TAppearanceNode;
+begin
+  Result := TVector3Cardinal.Zero;
+  AppearanceNode := Node.TryFindNodeByName(TAppearanceNode, 'Glass', false) as TAppearanceNode;
+  if not (AppearanceNode = nil) then
+  begin
+    TextureNode := AppearanceNode.MainTexture as TImageTextureNode;
+    if not (TextureNode = nil) then
+      begin
+        TextureNode.SetUrl(TextureUrl);
+        if TextureNode.IsTextureImage then
+          Result := TextureNode.TextureImage.Dimensions;
+      end;
+  end;
+end;
 
 procedure TCastleApp.LoadScene(Sender: TObject; filename: String);
 begin
@@ -89,6 +117,8 @@ begin
   Scene := TCastleScene.Create(Application);
   // Load a model into the scene
   Scene.load(filename);
+  ChangeTexture(Scene.RootNode, InitialSet[colour]);
+
   // Add the scene to the viewport
   Viewport.Items.Add(Scene);
 
@@ -98,15 +128,15 @@ end;
 
 procedure TCastleApp.RunCGEApplication(Sender: TObject);
 begin
-  // Textured cube designed for rotation in Y
-  // Change the model to box_rotx.x3dv for the X rotation version
-  LoadScene(Sender, 'castle-data:/box_roty.x3dv');
+  colour := 0;
+  Scene := nil;
+  LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
 end;
 
 {$ifndef cgeapp}
 procedure TCastleApp.FormCreate(Sender: TObject);
 begin
-  Caption := 'Trivial CGE Lazarus Application';
+  Caption := 'Hover CGE Lazarus Application';
   RunCGEApplication(Sender);
 end;
 {$endif}
@@ -139,7 +169,6 @@ procedure WindowClose(Sender: TUIContainer);
 procedure TCastleApp.WindowClose(Sender: TObject);
 {$endif}
 begin
-
 end;
 
 {$ifdef cgeapp}
@@ -148,7 +177,6 @@ procedure WindowMotion(Sender: TUIContainer; const Event: TInputMotion);
 procedure TCastleApp.WindowMotion(Sender: TObject; const Event: TInputMotion);
 {$endif}
 begin
-
 end;
 
 {$ifdef cgeapp}
@@ -157,7 +185,6 @@ procedure WindowOpen(Sender: TUIContainer);
 procedure TCastleApp.WindowOpen(Sender: TObject);
 {$endif}
 begin
-
 end;
 
 {$ifdef cgeapp}
@@ -168,7 +195,16 @@ procedure TCastleApp.WindowPress(Sender: TObject;
   const Event: TInputPressRelease);
 {$endif}
 begin
-
+  if Event.IsKey(keySpace) then
+    begin
+      if not (Scene = nil) then
+        begin
+          Inc(colour);
+          if (colour >= Length(InitialSet)) then
+            colour := 0;
+          ChangeTexture(Scene.RootNode, InitialSet[colour]);
+        end;
+    end;
 end;
 
 {$ifdef cgeapp}
@@ -179,7 +215,6 @@ procedure TCastleApp.WindowRelease(Sender: TObject;
   const Event: TInputPressRelease);
 {$endif}
 begin
-
 end;
 
 {$ifdef cgeapp}
@@ -188,7 +223,6 @@ procedure WindowRender(Sender: TUIContainer);
 procedure TCastleApp.WindowRender(Sender: TObject);
 {$endif}
 begin
-
 end;
 
 {$ifdef cgeapp}
@@ -197,7 +231,6 @@ procedure WindowResize(Sender: TUIContainer);
 procedure TCastleApp.WindowResize(Sender: TObject);
 {$endif}
 begin
-
 end;
 
 {$ifdef cgeapp}
@@ -206,10 +239,7 @@ procedure WindowUpdate(Sender: TUIContainer);
 procedure TCastleApp.WindowUpdate(Sender: TObject);
 {$endif}
 begin
-
 end;
-
-
 
 end.
 

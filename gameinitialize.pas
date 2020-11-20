@@ -4,15 +4,15 @@ unit GameInitialize;
 
 interface
 
-implementation
-
 uses
   CastleWindow, CastleScene, CastleControls, CastleLog, 
-  CastleApplicationProperties, MainGameUnit;
+  CastleTimeUtils, CastleApplicationProperties, MainGameUnit;
 
 var
   Window: TCastleWindowBase;
   CastleApp: TCastleApp;
+
+implementation
 
 { One-time initialization of resources. }
 procedure ApplicationInitialize;
@@ -28,13 +28,13 @@ begin
   Window.onRender := @WindowRender;
   Window.onResize := @WindowResize;
   Window.onUpdate := @WindowUpdate;
-  Window.Caption := 'Trivial CGE Standalone Application';
+  Window.Caption := 'Hover CGE Standalone Application';
 end;
 
 initialization
   { Set ApplicationName early, as our log uses it.
     Optionally you could also set ApplicationProperties.Version here. }
-  ApplicationProperties.ApplicationName := 'Trivial';
+  ApplicationProperties.ApplicationName := 'Hover';
 
   { Start logging. Do this as early as possible,
     to log information and eventual warnings during initialization.

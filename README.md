@@ -13,3 +13,5 @@ castle-engine compile --compiler-option=-dcgeapp
 castle-engine package  --target=android --compiler-option=-dcgeapp
 
 castle-engine package  --target=ios --compiler-option=-dcgeapp
+
+### Press the spacebar while it's running

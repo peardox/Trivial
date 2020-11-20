@@ -28,6 +28,7 @@ heap.trc
 backup/
 *.bak
 lib/
+castle-engine-output/
 
 # Application bundle for Mac OS
 *.app/

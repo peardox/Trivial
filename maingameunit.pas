@@ -1,6 +1,7 @@
 unit MainGameUnit;
 
 {$mode objfpc}{$H+}
+ {$define useDiskImage}
 
 interface
 
@@ -22,6 +23,7 @@ type
   {$ifndef cgeapp}
   TCastleApp = class(TForm)
     Window: TCastleControlBase;
+    procedure FormDestroy(Sender: TObject);
     procedure WindowBeforeRender(Sender: TObject);
     procedure WindowClose(Sender: TObject);
     procedure WindowMotion(Sender: TObject; const Event: TInputMotion);
@@ -39,10 +41,14 @@ type
     Viewport: TCastleViewport;
     Scene: TCastleScene;
     colour: Integer;
+    MasterTexture: TRGBAlphaImage;
   public
     procedure RunCGEApplication(Sender: TObject);
+    procedure KillCGEApplication(Sender: TObject);
     procedure LoadScene(Sender: TObject; filename: String);
     function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+    function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4): TRGBAlphaImage;
+    function LoadMasterTexture(filename: String): TRGBAlphaImage;
   end;
 
 {$ifndef cgeapp}
@@ -79,6 +85,55 @@ uses GameInitialize;
 
 { TCastleApp }
 
+function TCastleApp.RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4): TRGBAlphaImage;
+var
+  ImageOut: TRGBAlphaImage;
+  x, y: Integer;
+  ImRGB: TVector4;
+  FloatRGB: TVector4;
+begin
+  ImageOut := nil;
+  FloatRGB := Vector4(NewRGB.X / 255, NewRGB.Y / 255, NewRGB.Z / 255, 1);
+  if not(ImageIn = nil) then
+    begin
+      if not(ImageIn.Dimensions.IsZero) then
+        begin
+          ImageOut := TRGBAlphaImage.Create(ImageIn.Dimensions.X, ImageIn.Dimensions.Y);
+          for y := 0 to ImageIn.Dimensions.Y -1 do
+            begin
+              for x := 0 to ImageIn.Dimensions.X -1 do
+                begin
+                  ImRGB := ImageIn.Colors[x, y, 0];
+                  if TVector4.Equals(ImRGB, Vector4(1, 1, 1, 1)) then
+                    ImageOut.Colors[x, y, 0] := FloatRGB
+                  else
+                    ImageOut.Colors[x, y, 0] := ImRGB;
+                end;
+            end;
+        end;
+    end;
+  Result := ImageOut;
+end;
+
+function TCastleApp.LoadMasterTexture(filename: String): TRGBAlphaImage;
+begin
+  try
+    MasterTexture := LoadImage(filename, [TRGBAlphaImage]) as TRGBAlphaImage;
+  except
+    on E : Exception do
+      begin
+        {$ifndef cgeapp}
+        ShowMessage('Exception' + LineEnding +
+                    'Trying to load : ' + filename + LineEnding +
+                     E.ClassName + LineEnding +
+                     E.Message);
+        {$endif}
+        MasterTexture := nil;
+       end;
+  end;
+  Result := MasterTexture;
+end;
+
 function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
 var
   TextureNode: TImageTextureNode;
@@ -109,6 +164,7 @@ begin
   // Use default navigation keys
   Viewport.AutoNavigation := true;
 
+  LoadMasterTexture('castle-data:/HoverRacer.png');
   // Add the viewport to the CGE control
   {$ifndef cgeapp}
   Window.Controls.InsertFront(Viewport);
@@ -132,7 +188,13 @@ procedure TCastleApp.RunCGEApplication(Sender: TObject);
 begin
   colour := 0;
   Scene := nil;
+  MasterTexture := nil;
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
+end;
+
+procedure TCastleApp.KillCGEApplication(Sender: TObject);
+begin
+  FreeAndNil(MasterTexture);
 end;
 
 {$ifndef cgeapp}
@@ -140,6 +202,11 @@ procedure TCastleApp.FormCreate(Sender: TObject);
 begin
   Caption := 'Hover CGE Lazarus Application';
   RunCGEApplication(Sender);
+end;
+
+procedure TCastleApp.FormDestroy(Sender: TObject);
+begin
+  KillCGEApplication(Sender);
 end;
 {$endif}
 
@@ -204,16 +271,28 @@ procedure WindowPress(Sender: TUIContainer;
 procedure TCastleApp.WindowPress(Sender: TObject;
   const Event: TInputPressRelease);
 {$endif}
+var
+  TempImage: TRGBAlphaImage;
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
   if Event.IsKey(keySpace) then
     begin
       if not (Scene = nil) then
         begin
+          {$ifndef useDiskImage}
           Inc(colour);
           if (colour >= Length(InitialSet)) then
             colour := 0;
           ChangeTexture(Scene.RootNode, InitialSet[colour]);
+          {$else}
+          TempImage := RecolorImage(MasterTexture, Vector4(random(256), random(256), random(256), 255));
+          if not(TempImage = nil) then
+            begin
+              SaveImage(TempImage, 'castle-data:/HoverRacer_temp.png');
+              ChangeTexture(Scene.RootNode, 'castle-data:/HoverRacer_temp.png');
+              FreeAndNil(TempImage);
+              end;
+          {$endif}
         end;
     end;
     {$ifdef cgeapp}end;{$endif}

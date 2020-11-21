@@ -1,7 +1,7 @@
 unit MainGameUnit;
 
 {$mode objfpc}{$H+}
-{$define useAssignImage}
+// {$define useMetal}
 
 interface
 
@@ -43,8 +43,12 @@ type
     Scene: TCastleScene;
     ColorChoice: Integer;
     MasterTexture: TRGBAlphaImage;
+    {$ifdef useMetal}
+    MasterMetalTexture: TRGBAlphaImage;
+    {$endif}
     LabelSpare: TCastleLabel;
     LabelFPS: TCastleLabel;
+    LabelClick: TCastleLabel;
     LabelRender: TCastleLabel;
     DoingRecolor: Boolean;
     RecolorTime: Int64;
@@ -60,6 +64,9 @@ type
     function ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;
     function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4Byte): TRGBAlphaImage;
     function LoadMasterTexture(filename: String): TRGBAlphaImage;
+    procedure HoverClick(Sender: TObject);
+    procedure AddSensor(AScene: TCastleScene; AColor: TVector4Byte);
+    procedure PaintJob;
   end;
 
 {$ifndef cgeapp}
@@ -78,6 +85,8 @@ procedure WindowRender(Sender: TUIContainer);
 procedure WindowResize(Sender: TUIContainer);
 procedure WindowUpdate(Sender: TUIContainer);
 {$endif}
+
+function Vec4BtoInt(const AValue: TVector4Byte): Cardinal;
 
 implementation
 {$ifdef cgeapp}
@@ -126,9 +135,11 @@ begin
 end;
 
 function TCastleApp.LoadMasterTexture(filename: String): TRGBAlphaImage;
+var
+  Texture: TRGBAlphaImage;
 begin
   try
-    MasterTexture := LoadImage(filename, [TRGBAlphaImage]) as TRGBAlphaImage;
+    Texture := LoadImage(filename, [TRGBAlphaImage]) as TRGBAlphaImage;
   except
     on E : Exception do
       begin
@@ -138,16 +149,47 @@ begin
                      E.ClassName + LineEnding +
                      E.Message);
         {$endif}
-        MasterTexture := nil;
+        Texture := nil;
        end;
   end;
-  Result := MasterTexture;
+  Result := Texture;
+end;
+
+procedure TCastleApp.HoverClick(Sender: TObject);
+begin
+  if Sender is TTouchSensorNode then
+    begin
+//      MenuValue := ExtractX3DTag(TTouchSensorNode(Sender).X3DName, 'MenuTouch_');
+      LabelClick.Caption := 'Received MenuClick (' + TTouchSensorNode(Sender).X3DName + ')';
+      PaintJob;
+    end;
+end;
+
+procedure TCastleApp.AddSensor(AScene: TCastleScene; AColor: TVector4Byte);
+var
+  TouchSensor: TTouchSensorNode;
+begin
+  if not(AScene = nil) then
+    begin
+    TouchSensor := AScene.RootNode.TryFindNodeByName(TTouchSensorNode, 'TextureColor', false) as TTouchSensorNode;
+    if TouchSensor = nil then
+      begin
+        TouchSensor := TTouchSensorNode.Create('TextureColor');
+        TouchSensor.Enabled := true;
+        TouchSensor.Onclick := @HoverClick;
+        AScene.RootNode.AddChildren(TouchSensor);
+      end;
+  //  Vec4BtoInt(NewColor);
+  end;
 end;
 
 function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;
 var
   PhysicalMaterialNode: TPhysicalMaterialNode;
   PixelTextureNode: TPixelTextureNode;
+  {$ifdef useMetal}
+  MetalTextureNode: TPixelTextureNode;
+  {$endif}
   AppearanceNode: TAppearanceNode;
 begin
   Result := TVector3Cardinal.Zero;
@@ -156,10 +198,19 @@ begin
   begin
     PixelTextureNode := TPixelTextureNode.Create;
     PixelTextureNode.FdImage.Value := Texture;
+    {$ifdef useMetal}
+    MetalTextureNode := TPixelTextureNode.Create;
+    MetalTextureNode.FdImage.Value := MasterMetalTexture;
+    {$endif}
     if PixelTextureNode.IsTextureImage then
       begin
         PhysicalMaterialNode := TPhysicalMaterialNode.Create;
         PhysicalMaterialNode.baseTexture := PixelTextureNode;
+        PhysicalMaterialNode.baseTextureMapping := 'TEXCOORD_0';
+        PhysicalMaterialNode.metallicRoughnessTextureMapping := 'TEXCOORD_0';
+        {$ifdef useMetal}
+        PhysicalMaterialNode.metallicRoughnessTexture := MetalTextureNode;
+        {$endif}
         AppearanceNode.Material := PhysicalMaterialNode;
         Result := PixelTextureNode.TextureImage.Dimensions;
       end;
@@ -181,6 +232,51 @@ begin
   Window.Controls.InsertFront(objLabel);
 end;
 
+function Vec4BtoInt(const AValue: TVector4Byte): Cardinal;
+begin
+  Result := (AValue.X << 16) or (AValue.Y << 8) or AValue.Z;
+end;
+
+procedure TCastleApp.PaintJob;
+var
+  TempImage: TRGBAlphaImage;
+  ReColorTimer: Int64;
+  CacheTimer: Int64;
+begin
+  if not (Scene = nil) and not(DoingRecolor) then
+    begin
+      DoingRecolor := True;
+      ReColorTimer := CastleGetTickCount64;
+      NewColor := Vector4Byte(random(256), random(256), random(256), 255);
+      TempImage := RecolorImage(MasterTexture, NewColor);
+      if not(TempImage = nil) then
+        begin
+          ReColorTimer := CastleGetTickCount64 - ReColorTimer;
+          CacheTimer := CastleGetTickCount64;
+          ChangeTexture(Scene.RootNode, TempImage);
+          CacheTimer := CastleGetTickCount64 - CacheTimer;
+        end;
+      RecolorTime += ReColorTimer;
+      CacheTime += CacheTimer;
+      Inc(RecolorCount);
+      LabelSpare.Caption := 'ReColor = ' +
+                           FormatFloat('####0.000', ReColorTimer / 1000) +
+                           ' seconds' + LineEnding +
+                           'Average ReColor = ' +
+                           FormatFloat('####0.000', (RecolorTime / RecolorCount) / 1000) +
+                           ' seconds (' + IntToStr(RecolorCount) + ' ReColors)' +
+                            LineEnding +'Apply Texture = ' +
+                            FormatFloat('####0.000', CacheTimer / 1000) +
+                            ' seconds' + LineEnding +
+                            'Average Application = ' +
+                            FormatFloat('####0.000', (CacheTime / RecolorCount) / 1000) +
+                            ' seconds (' + IntToStr(RecolorCount) + ' ReColors)';
+
+      DoingRecolor := False;
+    end;
+
+end;
+
 procedure TCastleApp.LoadScene(Sender: TObject; filename: String);
 var
   TempImage: TRGBAlphaImage;
@@ -194,7 +290,10 @@ begin
   // Use default navigation keys
   Viewport.AutoNavigation := true;
 
-  LoadMasterTexture('castle-data:/HoverRacerReColor.png');
+  MasterTexture := LoadMasterTexture('castle-data:/HoverRacerReColor.png');
+  {$ifdef useMetal}
+  MasterMetalTexture := LoadMasterTexture('castle-data:/HoverRacerReColor_maps.png');
+  {$endif}
 
   // Add the viewport to the CGE control
   {$ifndef cgeapp}
@@ -205,10 +304,13 @@ begin
 
   Scene := TCastleScene.Create(Application);
   // Load a model into the scene
-  Scene.load(filename);
+  Scene.Load(filename);
 
   TempImage := RecolorImage(MasterTexture, NewColor); // Red at initialization
   ChangeTexture(Scene.RootNode, TempImage);
+  AddSensor(Scene, NewColor);
+  Scene.ProcessEvents := true;
+  Scene.Spatial := [ssRendering, ssDynamicCollisions];
 
   // Add the scene to the viewport
   Viewport.Items.Add(Scene);
@@ -217,6 +319,7 @@ begin
   Viewport.Items.MainScene := Scene;
 
   CreateLabel(LabelSpare, 0, False);
+  CreateLabel(LabelClick, 2);
   CreateLabel(LabelFPS, 1);
   CreateLabel(LabelRender, 0);
 end;
@@ -231,6 +334,9 @@ begin
   ColorChoice := 0;
   Scene := nil;
   MasterTexture := nil;
+  {$ifdef useMetal}
+  MasterMetalTexture := nil;
+  {$endif}
   NewColor := Vector4Byte(255, 0, 0, 255); // Default to Red
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
 end;
@@ -238,6 +344,9 @@ end;
 procedure TCastleApp.KillCGEApplication(Sender: TObject);
 begin
   FreeAndNil(MasterTexture);
+  {$ifdef useMetal}
+  //  FreeAndNil(MasterMetalTexture);
+  {$endif}
 end;
 
 {$ifndef cgeapp}
@@ -323,53 +432,22 @@ procedure TCastleApp.WindowPress(Sender: TObject;
 {$endif}
 var
   TempImage: TRGBAlphaImage;
-  ReColorTimer: Int64;
-  CacheTimer: Int64;
-  ExportTimer: Int64;
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifndef darwin}
   if Event.IsKey(keyX) then
     begin
       TempImage := RecolorImage(MasterTexture, NewColor);
       SaveImage(TempImage, 'castle-data:/exportedTextures/HoverRacer_temp.png');
       FreeAndNil(TempImage);
     end;
+  {$endif}
 
   if Event.IsKey(keySpace) then
     begin
-      if not (Scene = nil) and not(DoingRecolor) then
-        begin
-          DoingRecolor := True;
-          ReColorTimer := CastleGetTickCount64;
-          NewColor := Vector4Byte(random(256), random(256), random(256), 255);
-          TempImage := RecolorImage(MasterTexture, NewColor);
-          if not(TempImage = nil) then
-            begin
-              ReColorTimer := CastleGetTickCount64 - ReColorTimer;
-              CacheTimer := CastleGetTickCount64;
-              ChangeTexture(Scene.RootNode, TempImage);
-              CacheTimer := CastleGetTickCount64 - CacheTimer;
-            end;
-          RecolorTime += ReColorTimer;
-          CacheTime += CacheTimer;
-          Inc(RecolorCount);
-          LabelSpare.Caption := 'ReColor = ' +
-                               FormatFloat('####0.000', ReColorTimer / 1000) +
-                               ' seconds' + LineEnding +
-                               'Average ReColor = ' +
-                               FormatFloat('####0.000', (RecolorTime / RecolorCount) / 1000) +
-                               ' seconds (' + IntToStr(RecolorCount) + ' ReColors)' +
-                                LineEnding +'Apply Texture = ' +
-                                FormatFloat('####0.000', CacheTimer / 1000) +
-                                ' seconds' + LineEnding +
-                                'Average Application = ' +
-                                FormatFloat('####0.000', (CacheTime / RecolorCount) / 1000) +
-                                ' seconds (' + IntToStr(RecolorCount) + ' ReColors)';
-
-          DoingRecolor := False;
-        end;
+      PaintJob;
     end;
-    {$ifdef cgeapp}end;{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}

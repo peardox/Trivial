@@ -45,14 +45,19 @@ type
     ColorChoice: Integer;
     MasterTexture: TRGBAlphaImage;
     LabelSpare: TCastleLabel;
+    LabelFPS: TCastleLabel;
+    LabelRender: TCastleLabel;
     DoingRecolor: Boolean;
     RecolorTime: Int64;
+    CacheTime: Int64;
     RecolorCount: Int64;
+    GLIsReady: Boolean;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure KillCGEApplication(Sender: TObject);
     procedure LoadScene(Sender: TObject; filename: String);
-    procedure CreateLabel(var objLabel: TCastleLabel; const Line: Integer; const BottomUp: Boolean = True);    function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+    procedure CreateLabel(var objLabel: TCastleLabel; const Line: Integer; const BottomUp: Boolean = True);
+    function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
     function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4): TRGBAlphaImage;
     function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4Byte): TRGBAlphaImage;
     function LoadMasterTexture(filename: String): TRGBAlphaImage;
@@ -243,12 +248,16 @@ begin
   Viewport.Items.MainScene := Scene;
 
   CreateLabel(LabelSpare, 0, False);
+  CreateLabel(LabelFPS, 1);
+  CreateLabel(LabelRender, 0);
 end;
 
 procedure TCastleApp.RunCGEApplication(Sender: TObject);
 begin
   DoingRecolor := False;
+  GLIsReady := False;
   RecolorTime := 0;
+  CacheTime := 0;
   RecolorCount := 0;
   ColorChoice := 0;
   Scene := nil;
@@ -286,15 +295,21 @@ var
   theta: Single;
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
-  // Set angle (theta) to revolve completely once every SecsPerRot
-  theta := ((CastleGetTickCount64 mod
-            (SecsPerRot * 1000)) /
-            (SecsPerRot * 1000)) * (Pi * 2);
+  if GLIsReady then
+    begin
+    LabelFPS.Caption := 'FPS = ' + FormatFloat('####0.00', Window.Fps.RealFps);
+    LabelRender.Caption := 'Render = ' + FormatFloat('####0.00', Window.Fps.OnlyRenderFps);
 
-  // Rotate the scene in Y
-  // Change to Vector4(1, 0, 0, theta); to rotate in X
+    // Set angle (theta) to revolve completely once every SecsPerRot
+    theta := ((CastleGetTickCount64 mod
+              (SecsPerRot * 1000)) /
+              (SecsPerRot * 1000)) * (Pi * 2);
 
-  Scene.Rotation := Vector4(0, 1, 0, theta);
+    // Rotate the scene in Y
+    // Change to Vector4(1, 0, 0, theta); to rotate in X
+
+    Scene.Rotation := Vector4(0, 1, 0, theta);
+    end;
   {$ifdef cgeapp}end;{$endif}
 end;
 
@@ -325,6 +340,7 @@ procedure TCastleApp.WindowOpen(Sender: TObject);
 {$endif}
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
+  GLIsReady := True;
   {$ifdef cgeapp}end;{$endif}
 end;
 
@@ -338,6 +354,7 @@ procedure TCastleApp.WindowPress(Sender: TObject;
 var
   TempImage: TRGBAlphaImage;
   ReColorTimer: Int64;
+  CacheTimer: Int64;
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
   if Event.IsKey(keySpace) then
@@ -360,19 +377,28 @@ begin
           if not(TempImage = nil) then
             begin
               ReColorTimer := CastleGetTickCount64 - ReColorTimer;
+              CacheTimer := CastleGetTickCount64;
               SaveImage(TempImage, 'castle-data:/HoverRacer_temp.png');
               ChangeTexture(Scene.RootNode, 'castle-data:/HoverRacer_temp.png');
+              CacheTimer := CastleGetTickCount64 - CacheTimer;
               FreeAndNil(TempImage);
             end;
           {$endif}
           RecolorTime += ReColorTimer;
+          CacheTime += CacheTimer;
           Inc(RecolorCount);
           LabelSpare.Caption := 'ReColor = ' +
                                FormatFloat('####0.000', ReColorTimer / 1000) +
                                ' seconds' + LineEnding +
-                               'Average = ' +
+                               'Average ReColor = ' +
                                FormatFloat('####0.000', (RecolorTime / RecolorCount) / 1000) +
-                               ' seconds (' + IntToStr(RecolorCount) + ' ReColors)';
+                               ' seconds (' + IntToStr(RecolorCount) + ' ReColors)' +
+                                LineEnding +'Disk = ' +
+                                FormatFloat('####0.000', CacheTimer / 1000) +
+                                ' seconds' + LineEnding +
+                                'Average Disk = ' +
+                                FormatFloat('####0.000', (CacheTime / RecolorCount) / 1000) +
+                                ' seconds (' + IntToStr(RecolorCount) + ' ReColors)';
 
           DoingRecolor := False;
         end;

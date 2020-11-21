@@ -1,8 +1,7 @@
 unit MainGameUnit;
 
 {$mode objfpc}{$H+}
-{$define useDiskImage}
-// {$define useFloatRecolor}
+{$define useAssignImage}
 
 interface
 
@@ -52,13 +51,13 @@ type
     CacheTime: Int64;
     RecolorCount: Int64;
     GLIsReady: Boolean;
+    NewColor: TVector4Byte;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure KillCGEApplication(Sender: TObject);
     procedure LoadScene(Sender: TObject; filename: String);
     procedure CreateLabel(var objLabel: TCastleLabel; const Line: Integer; const BottomUp: Boolean = True);
-    function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
-    function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4): TRGBAlphaImage;
+    function ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;
     function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4Byte): TRGBAlphaImage;
     function LoadMasterTexture(filename: String): TRGBAlphaImage;
   end;
@@ -67,12 +66,6 @@ type
 var
   CastleApp: TCastleApp;
 {$endif}
-
-const
-  InitialSet: array [0 .. 2] of String =
-      ('HoverRacer_Red.png',
-       'HoverRacer_Green.png',
-       'HoverRacer_Blue.png');
 
 {$ifdef cgeapp}
 procedure WindowBeforeRender(Sender: TUIContainer);
@@ -132,38 +125,6 @@ begin
   Result := ImageOut;
 end;
 
-function TCastleApp.RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4): TRGBAlphaImage;
-var
-  ImageOut: TRGBAlphaImage;
-  x, y: Integer;
-  ImRGB: TVector4;
-  SeekRGB: TVector4;
-  ReplaceRGB: TVector4;
-begin
-  ImageOut := nil;
-  SeekRGB := Vector4(1, 1, 1, 1);
-  ReplaceRGB := Vector4(NewRGB.X / 255, NewRGB.Y / 255, NewRGB.Z / 255, 1);
-  if not(ImageIn = nil) then
-    begin
-      if not(ImageIn.Dimensions.IsZero) then
-        begin
-          ImageOut := TRGBAlphaImage.Create(ImageIn.Dimensions.X, ImageIn.Dimensions.Y);
-          for y := 0 to ImageIn.Dimensions.Y -1 do
-            begin
-              for x := 0 to ImageIn.Dimensions.X -1 do
-                begin
-                  ImRGB := ImageIn.Colors[x, y, 0];
-                  if TVector4.Equals(ImRGB, SeekRGB) then
-                    ImageOut.Colors[x, y, 0] := ReplaceRGB
-                  else
-                    ImageOut.Colors[x, y, 0] := ImRGB;
-                end;
-            end;
-        end;
-    end;
-  Result := ImageOut;
-end;
-
 function TCastleApp.LoadMasterTexture(filename: String): TRGBAlphaImage;
 begin
   try
@@ -183,21 +144,24 @@ begin
   Result := MasterTexture;
 end;
 
-function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;
 var
-  TextureNode: TImageTextureNode;
+  PhysicalMaterialNode: TPhysicalMaterialNode;
+  PixelTextureNode: TPixelTextureNode;
   AppearanceNode: TAppearanceNode;
 begin
   Result := TVector3Cardinal.Zero;
   AppearanceNode := Node.TryFindNodeByName(TAppearanceNode, 'Glass', false) as TAppearanceNode;
   if not (AppearanceNode = nil) then
   begin
-    TextureNode := AppearanceNode.MainTexture as TImageTextureNode;
-    if not (TextureNode = nil) then
+    PixelTextureNode := TPixelTextureNode.Create;
+    PixelTextureNode.FdImage.Value := Texture;
+    if PixelTextureNode.IsTextureImage then
       begin
-        TextureNode.SetUrl(TextureUrl);
-        if TextureNode.IsTextureImage then
-          Result := TextureNode.TextureImage.Dimensions;
+        PhysicalMaterialNode := TPhysicalMaterialNode.Create;
+        PhysicalMaterialNode.baseTexture := PixelTextureNode;
+        AppearanceNode.Material := PhysicalMaterialNode;
+        Result := PixelTextureNode.TextureImage.Dimensions;
       end;
   end;
 end;
@@ -218,6 +182,8 @@ begin
 end;
 
 procedure TCastleApp.LoadScene(Sender: TObject; filename: String);
+var
+  TempImage: TRGBAlphaImage;
 begin
   // Set up the main viewport
   Viewport := TCastleViewport.Create(Application);
@@ -228,7 +194,8 @@ begin
   // Use default navigation keys
   Viewport.AutoNavigation := true;
 
-  LoadMasterTexture('castle-data:/HoverRacer.png');
+  LoadMasterTexture('castle-data:/HoverRacerReColor.png');
+
   // Add the viewport to the CGE control
   {$ifndef cgeapp}
   Window.Controls.InsertFront(Viewport);
@@ -239,7 +206,9 @@ begin
   Scene := TCastleScene.Create(Application);
   // Load a model into the scene
   Scene.load(filename);
-  ChangeTexture(Scene.RootNode, InitialSet[ColorChoice]);
+
+  TempImage := RecolorImage(MasterTexture, NewColor); // Red at initialization
+  ChangeTexture(Scene.RootNode, TempImage);
 
   // Add the scene to the viewport
   Viewport.Items.Add(Scene);
@@ -262,6 +231,7 @@ begin
   ColorChoice := 0;
   Scene := nil;
   MasterTexture := nil;
+  NewColor := Vector4Byte(255, 0, 0, 255); // Default to Red
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
 end;
 
@@ -355,35 +325,31 @@ var
   TempImage: TRGBAlphaImage;
   ReColorTimer: Int64;
   CacheTimer: Int64;
+  ExportTimer: Int64;
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
+  if Event.IsKey(keyX) then
+    begin
+      TempImage := RecolorImage(MasterTexture, NewColor);
+      SaveImage(TempImage, 'castle-data:/exportedTextures/HoverRacer_temp.png');
+      FreeAndNil(TempImage);
+    end;
+
   if Event.IsKey(keySpace) then
     begin
       if not (Scene = nil) and not(DoingRecolor) then
         begin
           DoingRecolor := True;
           ReColorTimer := CastleGetTickCount64;
-          {$ifndef useDiskImage}
-          Inc(ColorChoice);
-          if (ColorChoice >= Length(InitialSet)) then
-            ColorChoice := 0;
-          ChangeTexture(Scene.RootNode, InitialSet[ColorChoice]);
-          {$else}
-          {$ifdef useFloatRecolor}
-          TempImage := RecolorImage(MasterTexture, Vector4(random(256), random(256), random(256), 255));
-          {$else}
-          TempImage := RecolorImage(MasterTexture, Vector4Byte(random(256), random(256), random(256), 255));
-          {$endif}
+          NewColor := Vector4Byte(random(256), random(256), random(256), 255);
+          TempImage := RecolorImage(MasterTexture, NewColor);
           if not(TempImage = nil) then
             begin
               ReColorTimer := CastleGetTickCount64 - ReColorTimer;
               CacheTimer := CastleGetTickCount64;
-              SaveImage(TempImage, 'castle-data:/HoverRacer_temp.png');
-              ChangeTexture(Scene.RootNode, 'castle-data:/HoverRacer_temp.png');
+              ChangeTexture(Scene.RootNode, TempImage);
               CacheTimer := CastleGetTickCount64 - CacheTimer;
-              FreeAndNil(TempImage);
             end;
-          {$endif}
           RecolorTime += ReColorTimer;
           CacheTime += CacheTimer;
           Inc(RecolorCount);
@@ -393,10 +359,10 @@ begin
                                'Average ReColor = ' +
                                FormatFloat('####0.000', (RecolorTime / RecolorCount) / 1000) +
                                ' seconds (' + IntToStr(RecolorCount) + ' ReColors)' +
-                                LineEnding +'Disk = ' +
+                                LineEnding +'Apply Texture = ' +
                                 FormatFloat('####0.000', CacheTimer / 1000) +
                                 ' seconds' + LineEnding +
-                                'Average Disk = ' +
+                                'Average Application = ' +
                                 FormatFloat('####0.000', (CacheTime / RecolorCount) / 1000) +
                                 ' seconds (' + IntToStr(RecolorCount) + ' ReColors)';
 

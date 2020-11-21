@@ -1,0 +1,1 @@
+This directory gets filled up with textures you export by pressing X in Hover

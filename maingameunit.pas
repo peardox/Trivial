@@ -13,7 +13,7 @@ uses
   {$endif}
   CastleCameras, CastleApplicationProperties, CastleLog,
   CastleSceneCore, CastleVectors, CastleScene, CastleViewport,
-  X3DNodes, CastleTimeUtils, CastleKeysMouse;
+  X3DNodes, CastleImages, CastleTimeUtils, CastleKeysMouse;
 
 type
 
@@ -36,30 +36,19 @@ type
   TCastleApp = class(TWindowContainer)
   {$endif}
   private
+    Viewport: TCastleViewport;
+    Scene: TCastleScene;
+    colour: Integer;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure LoadScene(Sender: TObject; filename: String);
+    function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
   end;
 
+{$ifndef cgeapp}
 var
-  {$ifndef cgeapp}
   CastleApp: TCastleApp;
-  {$endif}
-  Viewport: TCastleViewport;
-  Scene: TCastleScene;
-  colour: Integer;
-
-  {$ifdef cgeapp}
-  procedure WindowBeforeRender(Sender: TUIContainer);
-  procedure WindowClose(Sender: TUIContainer);
-  procedure WindowMotion(Sender: TUIContainer; const Event: TInputMotion);
-  procedure WindowOpen(Sender: TUIContainer);
-  procedure WindowPress(Sender: TUIContainer; const Event: TInputPressRelease);
-  procedure WindowRelease(Sender: TUIContainer; const Event: TInputPressRelease);
-  procedure WindowRender(Sender: TUIContainer);
-  procedure WindowResize(Sender: TUIContainer);
-  procedure WindowUpdate(Sender: TUIContainer);
-  {$endif}
+{$endif}
 
 const
   InitialSet: array [0 .. 2] of String =
@@ -67,9 +56,22 @@ const
        'HoverRacer_Green.png',
        'HoverRacer_Blue.png');
 
-function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+{$ifdef cgeapp}
+procedure WindowBeforeRender(Sender: TUIContainer);
+procedure WindowClose(Sender: TUIContainer);
+procedure WindowMotion(Sender: TUIContainer; const Event: TInputMotion);
+procedure WindowOpen(Sender: TUIContainer);
+procedure WindowPress(Sender: TUIContainer; const Event: TInputPressRelease);
+procedure WindowRelease(Sender: TUIContainer; const Event: TInputPressRelease);
+procedure WindowRender(Sender: TUIContainer);
+procedure WindowResize(Sender: TUIContainer);
+procedure WindowUpdate(Sender: TUIContainer);
+{$endif}
 
 implementation
+{$ifdef cgeapp}
+uses GameInitialize;
+{$endif}
 
 {$ifndef cgeapp}
 {$R *.lfm}
@@ -77,7 +79,7 @@ implementation
 
 { TCastleApp }
 
-function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
 var
   TextureNode: TImageTextureNode;
   AppearanceNode: TAppearanceNode;
@@ -152,6 +154,7 @@ const
 var
   theta: Single;
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
   // Set angle (theta) to revolve completely once every SecsPerRot
   theta := ((CastleGetTickCount64 mod
             (SecsPerRot * 1000)) /
@@ -161,6 +164,7 @@ begin
   // Change to Vector4(1, 0, 0, theta); to rotate in X
 
   Scene.Rotation := Vector4(0, 1, 0, theta);
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -169,6 +173,8 @@ procedure WindowClose(Sender: TUIContainer);
 procedure TCastleApp.WindowClose(Sender: TObject);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -177,6 +183,8 @@ procedure WindowMotion(Sender: TUIContainer; const Event: TInputMotion);
 procedure TCastleApp.WindowMotion(Sender: TObject; const Event: TInputMotion);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -185,6 +193,8 @@ procedure WindowOpen(Sender: TUIContainer);
 procedure TCastleApp.WindowOpen(Sender: TObject);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -195,6 +205,7 @@ procedure TCastleApp.WindowPress(Sender: TObject;
   const Event: TInputPressRelease);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
   if Event.IsKey(keySpace) then
     begin
       if not (Scene = nil) then
@@ -205,6 +216,7 @@ begin
           ChangeTexture(Scene.RootNode, InitialSet[colour]);
         end;
     end;
+    {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -215,6 +227,8 @@ procedure TCastleApp.WindowRelease(Sender: TObject;
   const Event: TInputPressRelease);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -223,6 +237,8 @@ procedure WindowRender(Sender: TUIContainer);
 procedure TCastleApp.WindowRender(Sender: TObject);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -231,6 +247,8 @@ procedure WindowResize(Sender: TUIContainer);
 procedure TCastleApp.WindowResize(Sender: TObject);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 {$ifdef cgeapp}
@@ -239,6 +257,8 @@ procedure WindowUpdate(Sender: TUIContainer);
 procedure TCastleApp.WindowUpdate(Sender: TObject);
 {$endif}
 begin
+  {$ifdef cgeapp}with CastleApp do begin{$endif}
+  {$ifdef cgeapp}end;{$endif}
 end;
 
 end.

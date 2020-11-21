@@ -6,7 +6,7 @@ A simple multi-platform demo application using [Castle Game Engine](https://cast
 
 ### Press the spacebar while it's running
 
-This project is Lazarus, command-like and build-tool friendly
+This project is Lazarus, Castle Editor and build-tool friendly
 
 ##### To compile with Lazarus (the only option for MacOS)
 
@@ -32,7 +32,7 @@ Install lpk on a device
 
 castle-engine package  --target=ios
 
-Install lpk on a device or use simulator
+Install on a device or use simulator
 
 ##### Credits
 

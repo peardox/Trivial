@@ -45,11 +45,12 @@ initialization
   if IsLibrary then
     InitializeLog;
 
+  { Create and assign Application.MainWindow. }
+  Window := TCastleWindowBase.Create(Application);
+
   { Initialize Application.OnInitialize. }
   Application.OnInitialize := @ApplicationInitialize;
 
-  { Create and assign Application.MainWindow. }
-  Window := TCastleWindowBase.Create(Application);
   Application.MainWindow := Window;
 
   { You should not need to do *anything* more in the unit "initialization" section.

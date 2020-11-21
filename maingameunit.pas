@@ -12,6 +12,7 @@ uses
   {$else}
   CastleWindow,
   {$endif}
+  CastleControls, CastleColors, CastleUIControls,
   CastleCameras, CastleApplicationProperties, CastleLog,
   CastleSceneCore, CastleVectors, CastleScene, CastleViewport,
   X3DNodes, CastleImages, CastleTimeUtils, CastleKeysMouse;
@@ -42,11 +43,13 @@ type
     Scene: TCastleScene;
     colour: Integer;
     MasterTexture: TRGBAlphaImage;
+    LabelSpare: TCastleLabel;
+    DoingRecolor: Boolean;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure KillCGEApplication(Sender: TObject);
     procedure LoadScene(Sender: TObject; filename: String);
-    function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
+    procedure CreateLabel(var objLabel: TCastleLabel; const Line: Integer; const BottomUp: Boolean = True);    function ChangeTexture(const Node: TX3DRootNode; const TextureUrl: String): TVector3Cardinal;
     function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4): TRGBAlphaImage;
     function LoadMasterTexture(filename: String): TRGBAlphaImage;
   end;
@@ -153,6 +156,21 @@ begin
   end;
 end;
 
+procedure TCastleApp.CreateLabel(var objLabel: TCastleLabel; const Line: Integer; const BottomUp: Boolean = True);
+begin
+  objLabel := TCastleLabel.Create(Application);
+  objLabel.Padding := 5;
+  objLabel.Color := White;
+  objLabel.Frame := True;
+  objLabel.FrameColor := Black;
+  objLabel.Anchor(hpLeft, 10);
+  if BottomUp then
+    objLabel.Anchor(vpBottom, 10 + (Line * 35))
+  else
+    objLabel.Anchor(vpTop, -(10 + (Line * 35)));
+  Window.Controls.InsertFront(objLabel);
+end;
+
 procedure TCastleApp.LoadScene(Sender: TObject; filename: String);
 begin
   // Set up the main viewport
@@ -182,10 +200,13 @@ begin
 
   // Tell the control this is the main scene so it gets some lighting
   Viewport.Items.MainScene := Scene;
+
+  CreateLabel(LabelSpare, 0, False);
 end;
 
 procedure TCastleApp.RunCGEApplication(Sender: TObject);
 begin
+  DoingRecolor := False;
   colour := 0;
   Scene := nil;
   MasterTexture := nil;
@@ -273,6 +294,7 @@ procedure TCastleApp.WindowPress(Sender: TObject;
 {$endif}
 var
   TempImage: TRGBAlphaImage;
+  LoadTimer: Int64;
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
   if Event.IsKey(keySpace) then
@@ -285,13 +307,20 @@ begin
             colour := 0;
           ChangeTexture(Scene.RootNode, InitialSet[colour]);
           {$else}
+          LoadTimer := CastleGetTickCount64;
           TempImage := RecolorImage(MasterTexture, Vector4(random(256), random(256), random(256), 255));
-          if not(TempImage = nil) then
+          if not(TempImage = nil) and not(DoingRecolor) then
             begin
+              DoingRecolor := True;
               SaveImage(TempImage, 'castle-data:/HoverRacer_temp.png');
               ChangeTexture(Scene.RootNode, 'castle-data:/HoverRacer_temp.png');
               FreeAndNil(TempImage);
-              end;
+              LoadTimer := CastleGetTickCount64 - LoadTimer;
+              LabelSpare.Caption := 'Recolor = ' +
+                                   FormatFloat('####0.000', LoadTimer / 1000) +
+                                   ' seconds';
+              DoingRecolor := False;
+            end;
           {$endif}
         end;
     end;

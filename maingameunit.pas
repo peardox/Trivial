@@ -41,10 +41,12 @@ type
   private
     Viewport: TCastleViewport;
     Scene: TCastleScene;
-    colour: Integer;
+    ColorChoice: Integer;
     MasterTexture: TRGBAlphaImage;
     LabelSpare: TCastleLabel;
     DoingRecolor: Boolean;
+    RecolorTime: Int64;
+    RecolorCount: Int64;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure KillCGEApplication(Sender: TObject);
@@ -193,7 +195,7 @@ begin
   Scene := TCastleScene.Create(Application);
   // Load a model into the scene
   Scene.load(filename);
-  ChangeTexture(Scene.RootNode, InitialSet[colour]);
+  ChangeTexture(Scene.RootNode, InitialSet[ColorChoice]);
 
   // Add the scene to the viewport
   Viewport.Items.Add(Scene);
@@ -207,7 +209,9 @@ end;
 procedure TCastleApp.RunCGEApplication(Sender: TObject);
 begin
   DoingRecolor := False;
-  colour := 0;
+  RecolorTime := 0;
+  RecolorCount := 0;
+  ColorChoice := 0;
   Scene := nil;
   MasterTexture := nil;
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
@@ -302,10 +306,10 @@ begin
       if not (Scene = nil) then
         begin
           {$ifndef useDiskImage}
-          Inc(colour);
-          if (colour >= Length(InitialSet)) then
-            colour := 0;
-          ChangeTexture(Scene.RootNode, InitialSet[colour]);
+          Inc(ColorChoice);
+          if (ColorChoice >= Length(InitialSet)) then
+            ColorChoice := 0;
+          ChangeTexture(Scene.RootNode, InitialSet[ColorChoice]);
           {$else}
           LoadTimer := CastleGetTickCount64;
           TempImage := RecolorImage(MasterTexture, Vector4(random(256), random(256), random(256), 255));
@@ -316,9 +320,15 @@ begin
               ChangeTexture(Scene.RootNode, 'castle-data:/HoverRacer_temp.png');
               FreeAndNil(TempImage);
               LoadTimer := CastleGetTickCount64 - LoadTimer;
-              LabelSpare.Caption := 'Recolor = ' +
+              RecolorTime += LoadTimer;
+              Inc(RecolorCount);
+              LabelSpare.Caption := 'ReColor = ' +
                                    FormatFloat('####0.000', LoadTimer / 1000) +
-                                   ' seconds';
+                                   ' seconds' + LineEnding +
+                                   'Average = ' +
+                                   FormatFloat('####0.000', (RecolorTime / RecolorCount) / 1000) +
+                                   ' seconds (' + IntToStr(RecolorCount) + ' ReColors)';
+
               DoingRecolor := False;
             end;
           {$endif}

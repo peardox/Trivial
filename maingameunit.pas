@@ -12,8 +12,9 @@ uses
   CastleWindow,
   {$endif}
   CastleControls, CastleColors, CastleUIControls,
+  CastleTriangles, CastleShapes, CastleVectors,
   CastleCameras, CastleApplicationProperties, CastleLog,
-  CastleSceneCore, CastleVectors, CastleScene, CastleViewport,
+  CastleSceneCore, CastleScene, CastleViewport,
   X3DNodes, X3DFields, X3DTIme,
   CastleImages, CastleTimeUtils, CastleKeysMouse;
 
@@ -193,25 +194,30 @@ end;
 
 procedure TCastleApp.AddSensor(AScene: TCastleScene; AColor: TVector4Byte);
 var
+  TransformNode: TTransformNode;
   TouchSensor: TTouchSensorNode;
 begin
   if not(AScene = nil) then
     begin
-    TouchSensor := AScene.RootNode.TryFindNodeByName(TTouchSensorNode, 'TextureColor', false) as TTouchSensorNode;
-    if TouchSensor = nil then
-      begin
-        TouchSensor := TTouchSensorNode.Create('TextureColor');
-        TouchSensor.Enabled := true;
-        TouchSensor.Onclick := @HoverClick;
-        TouchSensor.EventTouchTime.AddNotification(@EventListener.ReceivedTouchTime);
-        TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
-        AScene.RootNode.AddChildren(TouchSensor);
-        LabelT1.Caption := 'Sensor set';
-      end;
-  //  Vec4BtoInt(NewColor);
-    end
-  else
-    LabelT1.Caption := 'Sensor not set';
+      TransformNode := AScene.RootNode.TryFindNodeByName(TTransformNode, 'HoverRacer', false) as TTransformNode;
+      if not (TransformNode = nil) then
+        begin
+          TouchSensor := TransformNode.TryFindNodeByName(TTouchSensorNode, 'TextureColor', false) as TTouchSensorNode;
+          if TouchSensor = nil then
+            begin
+              TouchSensor := TTouchSensorNode.Create('TextureColor');
+              TouchSensor.Enabled := true;
+              TouchSensor.Onclick := @HoverClick;
+              TouchSensor.EventTouchTime.AddNotification(@EventListener.ReceivedTouchTime);
+              TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
+              TransformNode.AddChildren(TouchSensor);
+              LabelT1.Caption := 'Sensor set';
+              //  Vec4BtoInt(NewColor);
+            end;
+        end
+    else
+      LabelT1.Caption := 'Sensor not set';
+    end;
 end;
 
 function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;

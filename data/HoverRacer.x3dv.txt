@@ -1,0 +1,64 @@
+#X3D V3.2 utf8
+
+PROFILE Interchange
+
+META "generator" "Unmixer"
+META "source" "plane.x3dv"
+
+DEF HoverRacer Transform {
+	children [
+		DEF sphere1 Group {
+			children [
+				Shape {
+					appearance DEF Glass Appearance {
+						material PhysicalMaterial {
+							baseTexture ImageTexture {
+								url "HoverRacer.png"
+								flipVertically TRUE
+							}
+							baseTextureMapping "TEXCOORD_0"
+							metallicRoughnessTexture ImageTexture {
+								url "HoverRacer_maps.png"
+								flipVertically TRUE
+							}
+							metallicRoughnessTextureMapping "TEXCOORD_0"
+						}
+						alphaChannel "NONE"
+					}
+					geometry IndexedTriangleSet {
+						coord Coordinate {
+							point [ ... ]
+						}
+						normal Normal {
+							vector [ ... ]
+						}
+						texCoord MultiTextureCoordinate {
+							texCoord TextureCoordinate {
+								mapping "TEXCOORD_0"
+								point [ ... ]
+							}
+						}
+						solid FALSE
+						index [ ... ]
+					}
+					bboxCenter 0 -0.193972587585449 -1.9101802110672
+					bboxSize 4.92615842819214 5.0592303276062 2.87321782112122
+				}
+				Shape { ... }
+				Shape { ... }
+				Shape { ... }
+			]
+		}
+		DEF TextureColor TouchSensor {
+		}
+	]
+	rotation 0.999999940395355 0 0 1.57079648971558
+}
+DEF Light Transform {
+	rotation 0.205942168831825 0.920697569847107 -0.331517428159714 1.92627358436584
+	translation 4.07624530792236 5.90386199951172 -1.00545394420624
+}
+DEF Camera Transform {
+	rotation 0.773438155651093 0.538841664791107 -0.333831042051315 1.35071754455566
+	translation 7.35889148712158 4.95830917358398 6.92579078674316
+}

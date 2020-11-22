@@ -14,9 +14,15 @@ uses
   CastleControls, CastleColors, CastleUIControls,
   CastleCameras, CastleApplicationProperties, CastleLog,
   CastleSceneCore, CastleVectors, CastleScene, CastleViewport,
-  X3DNodes, CastleImages, CastleTimeUtils, CastleKeysMouse;
+  X3DNodes, X3DFields, X3DTIme,
+  CastleImages, CastleTimeUtils, CastleKeysMouse;
 
 type
+
+  TMyEventListener = class(TComponent)
+    procedure ReceivedTouchTime(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
+    procedure ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
+  end;
 
   { TCastleApp }
 
@@ -53,6 +59,7 @@ type
     RecolorCount: Int64;
     GLIsReady: Boolean;
     NewColor: TVector4Byte;
+    EventListener: TMyEventListener;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure KillCGEApplication(Sender: TObject);
@@ -66,10 +73,12 @@ type
     procedure PaintJob;
   end;
 
-{$ifndef cgeapp}
 var
+{$ifndef cgeapp}
   CastleApp: TCastleApp;
 {$endif}
+  LabelT1: TCastleLabel;
+  LabelT2: TCastleLabel;
 
 {$ifdef cgeapp}
 procedure WindowBeforeRender(Sender: TUIContainer);
@@ -93,6 +102,22 @@ uses GameInitialize;
 {$ifndef cgeapp}
 {$R *.lfm}
 {$endif}
+
+procedure TMyEventListener.ReceivedTouchTime(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
+var
+  Val: Double;
+begin
+  Val := (Value as TSFTime).Value;
+  LabelT1.Caption := Format('Received TouchSensor.touchTime event: time %f', [Val]);
+end;
+
+procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
+var
+  Val: Boolean;
+begin
+  Val := (Value as TSFBool).Value;
+  LabelT2.Caption := Format('Received TouchSensor.isActive event: %s', [BoolToStr(Val, true)]);
+end;
 
 { TCastleApp }
 
@@ -174,10 +199,15 @@ begin
         TouchSensor := TTouchSensorNode.Create('TextureColor');
         TouchSensor.Enabled := true;
         TouchSensor.Onclick := @HoverClick;
+        TouchSensor.EventTouchTime.AddNotification(@EventListener.ReceivedTouchTime);
+        TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
         AScene.RootNode.AddChildren(TouchSensor);
+        LabelT1.Caption := 'Sensor set';
       end;
   //  Vec4BtoInt(NewColor);
-  end;
+    end
+  else
+    LabelT1.Caption := 'Sensor not set';
 end;
 
 function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;
@@ -297,7 +327,6 @@ begin
 
   TempImage := RecolorImage(MasterTexture, NewColor); // Red at initialization
   ChangeTexture(Scene.RootNode, TempImage);
-  AddSensor(Scene, NewColor);
   Scene.ProcessEvents := true;
   Scene.Spatial := [ssRendering, ssDynamicCollisions];
 
@@ -308,6 +337,8 @@ begin
   Viewport.Items.MainScene := Scene;
 
   CreateLabel(LabelSpare, 0, False);
+  CreateLabel(LabelT1, 4);
+  CreateLabel(LabelT2, 3);
   CreateLabel(LabelClick, 2);
   CreateLabel(LabelFPS, 1);
   CreateLabel(LabelRender, 0);
@@ -324,6 +355,7 @@ begin
   Scene := nil;
   MasterTexture := nil;
   MasterMetalTexture := nil;
+  EventListener := TMyEventListener.Create(Application);
   NewColor := Vector4Byte(255, 0, 0, 255); // Default to Red
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
 end;
@@ -405,6 +437,7 @@ procedure TCastleApp.WindowOpen(Sender: TObject);
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
   GLIsReady := True;
+  AddSensor(Scene, NewColor);
   {$ifdef cgeapp}end;{$endif}
 end;
 

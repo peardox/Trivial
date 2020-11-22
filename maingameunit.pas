@@ -79,6 +79,7 @@ var
 {$endif}
   LabelT1: TCastleLabel;
   LabelT2: TCastleLabel;
+  evt_t1, evt_t2, evt_tc: Integer;
 
 {$ifdef cgeapp}
 procedure WindowBeforeRender(Sender: TUIContainer);
@@ -108,7 +109,8 @@ var
   Val: Double;
 begin
   Val := (Value as TSFTime).Value;
-  LabelT1.Caption := Format('Received TouchSensor.touchTime event: time %f', [Val]);
+  Inc(evt_t1);
+  LabelT1.Caption := Format('Received %d TouchSensor.touchTime event: time %f', [evt_t1, Val]);
 end;
 
 procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
@@ -116,7 +118,8 @@ var
   Val: Boolean;
 begin
   Val := (Value as TSFBool).Value;
-  LabelT2.Caption := Format('Received TouchSensor.isActive event: %s', [BoolToStr(Val, true)]);
+  Inc(evt_t2);
+  LabelT2.Caption := Format('Received %d TouchSensor.isActive event: %s', [evt_t2, BoolToStr(Val, true)]);
 end;
 
 { TCastleApp }
@@ -182,7 +185,8 @@ begin
   if Sender is TTouchSensorNode then
     begin
 //      MenuValue := ExtractX3DTag(TTouchSensorNode(Sender).X3DName, 'MenuTouch_');
-      LabelClick.Caption := 'Received MenuClick (' + TTouchSensorNode(Sender).X3DName + ')';
+      Inc(evt_tc);
+      LabelClick.Caption := 'Received MenuClick ' + IntToStr(evt_tc) + ' (' + TTouchSensorNode(Sender).X3DName + ')';
       PaintJob;
     end;
 end;
@@ -353,6 +357,9 @@ begin
   RecolorCount := 0;
   ColorChoice := 0;
   Scene := nil;
+  evt_t1 := 0;
+  evt_t2 := 0;
+  evt_tc := 0;
   MasterTexture := nil;
   MasterMetalTexture := nil;
   EventListener := TMyEventListener.Create(Application);

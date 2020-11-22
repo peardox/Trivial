@@ -8,6 +8,9 @@
   <package>
     <include path="README.txt" />
   </package>
+  <icons>
+    <icon path="icon.png" />
+  </icons>
   <!--
     Enable Android project integration with "services",
     https://github.com/castle-engine/castle-engine/wiki/Android-Project-Services-Integrated-with-Castle-Game-Engine .

@@ -1,7 +1,6 @@
 unit MainGameUnit;
 
 {$mode objfpc}{$H+}
-// {$define useMetal}
 
 interface
 
@@ -43,9 +42,7 @@ type
     Scene: TCastleScene;
     ColorChoice: Integer;
     MasterTexture: TRGBAlphaImage;
-    {$ifdef useMetal}
     MasterMetalTexture: TRGBAlphaImage;
-    {$endif}
     LabelSpare: TCastleLabel;
     LabelFPS: TCastleLabel;
     LabelClick: TCastleLabel;
@@ -187,9 +184,7 @@ function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const Texture: TCast
 var
   PhysicalMaterialNode: TPhysicalMaterialNode;
   PixelTextureNode: TPixelTextureNode;
-  {$ifdef useMetal}
   MetalTextureNode: TPixelTextureNode;
-  {$endif}
   AppearanceNode: TAppearanceNode;
 begin
   Result := TVector3Cardinal.Zero;
@@ -198,19 +193,15 @@ begin
   begin
     PixelTextureNode := TPixelTextureNode.Create;
     PixelTextureNode.FdImage.Value := Texture;
-    {$ifdef useMetal}
     MetalTextureNode := TPixelTextureNode.Create;
-    MetalTextureNode.FdImage.Value := MasterMetalTexture;
-    {$endif}
+    MetalTextureNode.FdImage.Value := MasterMetalTexture.MakeCopy;
     if PixelTextureNode.IsTextureImage then
       begin
         PhysicalMaterialNode := TPhysicalMaterialNode.Create;
         PhysicalMaterialNode.baseTexture := PixelTextureNode;
         PhysicalMaterialNode.baseTextureMapping := 'TEXCOORD_0';
         PhysicalMaterialNode.metallicRoughnessTextureMapping := 'TEXCOORD_0';
-        {$ifdef useMetal}
         PhysicalMaterialNode.metallicRoughnessTexture := MetalTextureNode;
-        {$endif}
         AppearanceNode.Material := PhysicalMaterialNode;
         Result := PixelTextureNode.TextureImage.Dimensions;
       end;
@@ -291,9 +282,7 @@ begin
   Viewport.AutoNavigation := true;
 
   MasterTexture := LoadMasterTexture('castle-data:/HoverRacerReColor.png');
-  {$ifdef useMetal}
   MasterMetalTexture := LoadMasterTexture('castle-data:/HoverRacerReColor_maps.png');
-  {$endif}
 
   // Add the viewport to the CGE control
   {$ifndef cgeapp}
@@ -334,9 +323,7 @@ begin
   ColorChoice := 0;
   Scene := nil;
   MasterTexture := nil;
-  {$ifdef useMetal}
   MasterMetalTexture := nil;
-  {$endif}
   NewColor := Vector4Byte(255, 0, 0, 255); // Default to Red
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
 end;
@@ -344,9 +331,7 @@ end;
 procedure TCastleApp.KillCGEApplication(Sender: TObject);
 begin
   FreeAndNil(MasterTexture);
-  {$ifdef useMetal}
-  //  FreeAndNil(MasterMetalTexture);
-  {$endif}
+  FreeAndNil(MasterMetalTexture);
 end;
 
 {$ifndef cgeapp}

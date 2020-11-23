@@ -356,9 +356,9 @@ begin
   // Use all the viewport
   Viewport.FullSize := true;
   // Automatically position the camera
-  Viewport.AutoCamera := true;
+  Viewport.AutoCamera := True;
   // Use default navigation keys
-  Viewport.AutoNavigation := true;
+  Viewport.AutoNavigation := False;
 
   MasterTexture := LoadMasterTexture('castle-data:/HoverRacerReColor.png');
   MasterMetalTexture := LoadMasterTexture('castle-data:/HoverRacerReColor_maps.png');

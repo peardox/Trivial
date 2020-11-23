@@ -12,6 +12,7 @@
 *.or
 *.a
 AndroidSigningProperties.txt
+data/scene.x3dv
 
 # Heap trace
 heap.trc

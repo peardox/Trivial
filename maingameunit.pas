@@ -222,8 +222,7 @@ begin
         end;
       {$endif}
       AColor := TTouchSensorNode(Sender).MetadataInteger['Color', 0];
-      LabelClick.Caption := 'Received OnClick ' + IntToStr(evt_tc) + ' - ' +
-          ' Meta = ' + IntToHex(AColor, 6);
+      LabelClick.Caption := 'OnClick ' + IntToStr(evt_tc) + ' - ' + IntToHex(AColor, 6);
       PaintJob;
       SetSensor(Scene, NewColor);
     end;
@@ -453,8 +452,8 @@ begin
   if GLIsReady then
     begin
     LabelTimer.Caption  := 'Timer (ms) = ' + RightStr(IntToStr(CastleGetTickCount64), 6);
-    if not(LastTime = 0) and ((CastleGetTickCount64 - LastTime) > 100)then
-      LabelLast.Caption := 'Elapsed >100 ms = ' + IntToStr(CastleGetTickCount64 - LastTime);
+    if not(LastTime = 0) then // and ((CastleGetTickCount64 - LastTime) > 100)then
+      LabelLast.Caption := 'Elapsed ms = ' + IntToStr(CastleGetTickCount64 - LastTime);
     LastTime := CastleGetTickCount64;
 
     LabelFPS.Caption := 'FPS = ' + FormatFloat('####0.00', Window.Fps.RealFps);

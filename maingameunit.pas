@@ -64,6 +64,9 @@ type
     GLIsReady: Boolean;
     NewColor: TVector4Byte;
     EventListener: TMyEventListener;
+    LabelT1: TCastleLabel;
+    LabelT2: TCastleLabel;
+    evt_t1, evt_t2, evt_hc: Integer;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure KillCGEApplication(Sender: TObject);
@@ -77,13 +80,10 @@ type
     procedure PaintJob;
   end;
 
-var
 {$ifndef cgeapp}
+var
   CastleApp: TCastleApp;
 {$endif}
-  LabelT1: TCastleLabel;
-  LabelT2: TCastleLabel;
-  evt_t1, evt_t2, evt_hc: Integer;
 
 {$ifdef cgeapp}
 procedure WindowBeforeRender(Sender: TUIContainer);
@@ -115,12 +115,23 @@ Taken from example and slightly modified
 }
 procedure TMyEventListener.ReceivedTouchTime(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
 var
+  AColor: Cardinal;
   Val: Double;
 begin
-  // Need to get to the owning Sensor object
-  Val := (Value as TSFTime).Value;
-  Inc(evt_t1);
-  LabelT1.Caption := Format('touchTime %d : %f', [evt_t1, Val]);
+  with Owner as TCastleApp do
+    begin
+      // Need to get to the owning Sensor object
+      Val := (Value as TSFTime).Value;
+      Inc(evt_t1);
+      if Event.ParentNode is TTouchSensorNode then
+        begin
+        // Find out the currnt color of the model
+        AColor := TTouchSensorNode(Event.ParentNode).MetadataInteger['Color', 0];
+        LabelT1.Caption := Format('touchTime %d : %s', [evt_t1, IntToHex(AColor, 6)]);
+        end
+      else
+        LabelT1.Caption := Format('touchTime %d : %f', [evt_t1, Val]);
+    end;
 end;
 
 {
@@ -128,12 +139,30 @@ Taken from example and slightly modified
 }
 procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
 var
+  AColor: Cardinal;
   Val: Boolean;
 begin
-  // Need to get to the owning Sensor object
-  Val := (Value as TSFBool).Value;
-  Inc(evt_t2);
-  LabelT2.Caption := Format('isActive %d : %s', [evt_t2, BoolToStr(Val, true)]);
+  with Owner as TCastleApp do
+    begin
+      // Need to get to the owning Sensor object
+      Val := (Value as TSFBool).Value;
+      Inc(evt_t2);
+      if Event.ParentNode is TTouchSensorNode then
+        begin
+        // Find out the currnt color of the model
+        AColor := TTouchSensorNode(Event.ParentNode).MetadataInteger['Color', 0];
+        LabelT2.Caption := Format('isActive %d : %s', [evt_t2, IntToHex(AColor, 6)]);
+        if Val then
+          begin
+          // Change color
+          PaintJob;
+          // Update Meta with new color
+          SetSensor(Scene, NewColor);
+          end;
+        end
+    else
+      LabelT2.Caption := Format('isActive %d : %s', [evt_t2, BoolToStr(Val, true)]);
+  end;
 end;
 
 {
@@ -151,10 +180,6 @@ begin
       AColor := TTouchSensorNode(Sender).MetadataInteger['Color', 0];
       // Report to screen
       LabelClick.Caption := 'OnClick ' + IntToStr(evt_hc) + ' - ' + IntToHex(AColor, 6);
-      // Change color
-      PaintJob;
-      // Update Meta with new color
-      SetSensor(Scene, NewColor);
     end;
 end;
 
@@ -436,7 +461,7 @@ begin
   MasterTexture := nil;
   MasterMetalTexture := nil;
   Window.Container.UIScaling := usDpiScale;
-  EventListener := TMyEventListener.Create(Application);
+  EventListener := TMyEventListener.Create(Self);
   NewColor := Vector4Byte(255, 0, 0, 255); // Default to Red
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
 end;

@@ -52,11 +52,14 @@ type
     MasterTexture: TRGBAlphaImage;
     MasterMetalTexture: TRGBAlphaImage;
     LabelSpare: TCastleLabel;
+    LabelTimer: TCastleLabel;
+    LabelLast: TCastleLabel;
     LabelFPS: TCastleLabel;
     LabelClick: TCastleLabel;
     LabelRender: TCastleLabel;
     DoingRecolor: Boolean;
     RecolorTime: Int64;
+    LastTime: Int64;
     CacheTime: Int64;
     RecolorCount: Int64;
     GLIsReady: Boolean;
@@ -114,7 +117,7 @@ begin
   // Need to get to the owning Sensor object
   Val := (Value as TSFTime).Value;
   Inc(evt_t1);
-  LabelT1.Caption := Format('Received %d TouchSensor.touchTime event: time %f', [evt_t1, Val]);
+  LabelT1.Caption := Format('touchTime %d : %f', [evt_t1, Val]);
 end;
 
 procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
@@ -124,7 +127,7 @@ begin
   // Need to get to the owning Sensor object
   Val := (Value as TSFBool).Value;
   Inc(evt_t2);
-  LabelT2.Caption := Format('Received %d TouchSensor.isActive event: %s', [evt_t2, BoolToStr(Val, true)]);
+  LabelT2.Caption := Format('isActive %d : %s', [evt_t2, BoolToStr(Val, true)]);
 end;
 
 { TCastleApp }
@@ -219,9 +222,8 @@ begin
         end;
       {$endif}
       AColor := TTouchSensorNode(Sender).MetadataInteger['Color', 0];
-      LabelClick.Caption := 'Received MenuClick ' + IntToStr(evt_tc) + ' - ' +
-          'Name = ' + TTouchSensorNode(Sender).X3DName +
-          ' Color = ' + IntToHex(AColor, 6);
+      LabelClick.Caption := 'Received OnClick ' + IntToStr(evt_tc) + ' - ' +
+          ' Meta = ' + IntToHex(AColor, 6);
       PaintJob;
       SetSensor(Scene, NewColor);
     end;
@@ -247,11 +249,12 @@ begin
               TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
               TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
               TransformNode.AddChildren(TouchSensor);
-              LabelT1.Caption := 'Sensor set - wrote ' + IntToStr(Vec4BtoInt(NewColor)) + ' as MetadataInteger';
+              LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
             end
           else
             begin
               TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
+              LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
             end;
         end
     else
@@ -329,18 +332,18 @@ begin
       RecolorTime += ReColorTimer;
       CacheTime += CacheTimer;
       Inc(RecolorCount);
-      LabelSpare.Caption := 'ReColor = ' +
+      LabelSpare.Caption := 'ReColor   = ' +
                            FormatFloat('####0.000', ReColorTimer / 1000) +
-                           ' seconds' + LineEnding +
-                           'Average ReColor = ' +
+                           ' s' + LineEnding +
+                           'Avg ReCol  = ' +
                            FormatFloat('####0.000', (RecolorTime / RecolorCount) / 1000) +
-                           ' seconds (' + IntToStr(RecolorCount) + ' ReColors)' +
-                            LineEnding +'Apply Texture = ' +
+                           ' s (' + IntToStr(RecolorCount) + ')' +
+                            LineEnding +'Apply Tex = ' +
                             FormatFloat('####0.000', CacheTimer / 1000) +
-                            ' seconds' + LineEnding +
-                            'Average Application = ' +
+                            ' s' + LineEnding +
+                            'Avg Apply  = ' +
                             FormatFloat('####0.000', (CacheTime / RecolorCount) / 1000) +
-                            ' seconds (' + IntToStr(RecolorCount) + ' ReColors)';
+                            ' s (' + IntToStr(RecolorCount) + ')';
 
       DoingRecolor := False;
     end;
@@ -385,7 +388,9 @@ begin
   // Tell the control this is the main scene so it gets some lighting
   Viewport.Items.MainScene := Scene;
 
-  CreateLabel(LabelSpare, 0, False);
+  CreateLabel(LabelTimer, 0, False);
+  CreateLabel(LabelLast, 1, False);
+  CreateLabel(LabelSpare, 2, False);
   CreateLabel(LabelT1, 4);
   CreateLabel(LabelT2, 3);
   CreateLabel(LabelClick, 2);
@@ -400,6 +405,7 @@ begin
   RecolorTime := 0;
   CacheTime := 0;
   RecolorCount := 0;
+  LastTime := 0;
   ColorChoice := 0;
   Scene := nil;
   evt_t1 := 0;
@@ -446,6 +452,11 @@ begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
   if GLIsReady then
     begin
+    LabelTimer.Caption  := 'Timer (ms) = ' + RightStr(IntToStr(CastleGetTickCount64), 6);
+    if not(LastTime = 0) and ((CastleGetTickCount64 - LastTime) > 100)then
+      LabelLast.Caption := 'Elapsed >100 ms = ' + IntToStr(CastleGetTickCount64 - LastTime);
+    LastTime := CastleGetTickCount64;
+
     LabelFPS.Caption := 'FPS = ' + FormatFloat('####0.00', Window.Fps.RealFps);
     LabelRender.Caption := 'Render = ' + FormatFloat('####0.00', Window.Fps.OnlyRenderFps);
 

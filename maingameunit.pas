@@ -407,6 +407,7 @@ begin
   evt_tc := 0;
   MasterTexture := nil;
   MasterMetalTexture := nil;
+  Window.Container.UIScaling := usDpiScale;
   EventListener := TMyEventListener.Create(Application);
   NewColor := Vector4Byte(255, 0, 0, 255); // Default to Red
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');

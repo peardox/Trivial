@@ -50,6 +50,13 @@ DEF HoverRacer Transform {
 			]
 		}
 		DEF TextureColor TouchSensor {
+			metadata MetadataSet {
+				name "ContainerForAllMetadataValues"
+				value MetadataInteger {
+					name "Color"
+					value 16711680
+				}
+			}
 		}
 	]
 	rotation 0.999999940395355 0 0 1.57079648971558

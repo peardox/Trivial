@@ -1,6 +1,7 @@
 unit MainGameUnit;
 
 {$mode objfpc}{$H+}
+// {$define useTriangles}
 
 interface
 
@@ -70,7 +71,7 @@ type
     function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4Byte): TRGBAlphaImage;
     function LoadMasterTexture(filename: String): TRGBAlphaImage;
     procedure HoverClick(Sender: TObject);
-    procedure AddSensor(AScene: TCastleScene; AColor: TVector4Byte);
+    procedure SetSensor(AScene: TCastleScene; AColor: TVector4Byte);
     procedure PaintJob;
   end;
 
@@ -95,6 +96,7 @@ procedure WindowUpdate(Sender: TUIContainer);
 {$endif}
 
 function Vec4BtoInt(const AValue: TVector4Byte): Cardinal;
+function GetNodePath(const Node: TX3DNode; const CurrentPath: String = ''): String;
 
 implementation
 {$ifdef cgeapp}
@@ -109,6 +111,7 @@ procedure TMyEventListener.ReceivedTouchTime(Event: TX3DEvent; Value: TX3DField;
 var
   Val: Double;
 begin
+  // Need to get to the owning Sensor object
   Val := (Value as TSFTime).Value;
   Inc(evt_t1);
   LabelT1.Caption := Format('Received %d TouchSensor.touchTime event: time %f', [evt_t1, Val]);
@@ -118,6 +121,7 @@ procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; 
 var
   Val: Boolean;
 begin
+  // Need to get to the owning Sensor object
   Val := (Value as TSFBool).Value;
   Inc(evt_t2);
   LabelT2.Caption := Format('Received %d TouchSensor.isActive event: %s', [evt_t2, BoolToStr(Val, true)]);
@@ -181,18 +185,49 @@ begin
   Result := Texture;
 end;
 
+function GetNodePath(const Node: TX3DNode; const CurrentPath: String = ''): String;
+begin
+  if not (Node = nil) then
+    begin
+      if not(CurrentPath = EmptyStr) then
+        Result := Node.X3dName + ' -> ' + CurrentPath
+      else
+        Result := Node.X3dName;
+//      GetNodePath(Node.Parent, CurrentPath);
+    end;
+end;
+
 procedure TCastleApp.HoverClick(Sender: TObject);
+var
+  AColor: Cardinal;
+  {$ifdef useTriangles}
+  Triangle: PTriangle;
+  Node: TX3DNode;
+  Path: String;
+{$endif}
 begin
   if Sender is TTouchSensorNode then
     begin
 //      MenuValue := ExtractX3DTag(TTouchSensorNode(Sender).X3DName, 'MenuTouch_');
       Inc(evt_tc);
-      LabelClick.Caption := 'Received MenuClick ' + IntToStr(evt_tc) + ' (' + TTouchSensorNode(Sender).X3DName + ')';
+      {$ifdef useTriangles}
+      Triangle := Scene.PointingDeviceOverItem;
+      if not(Triangle = nil) and not(Triangle^.MaterialInfo = nil) then
+        begin
+        Node := Triangle^.MaterialInfo.Node;
+        Path := GetNodePath(Node);
+        end;
+      {$endif}
+      AColor := TTouchSensorNode(Sender).MetadataInteger['Color', 0];
+      LabelClick.Caption := 'Received MenuClick ' + IntToStr(evt_tc) + ' - ' +
+          'Name = ' + TTouchSensorNode(Sender).X3DName +
+          ' Color = ' + IntToHex(AColor, 6);
       PaintJob;
+      SetSensor(Scene, NewColor);
     end;
 end;
 
-procedure TCastleApp.AddSensor(AScene: TCastleScene; AColor: TVector4Byte);
+procedure TCastleApp.SetSensor(AScene: TCastleScene; AColor: TVector4Byte);
 var
   TransformNode: TTransformNode;
   TouchSensor: TTouchSensorNode;
@@ -210,9 +245,13 @@ begin
               TouchSensor.Onclick := @HoverClick;
               TouchSensor.EventTouchTime.AddNotification(@EventListener.ReceivedTouchTime);
               TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
+              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
               TransformNode.AddChildren(TouchSensor);
-              LabelT1.Caption := 'Sensor set';
-              //  Vec4BtoInt(NewColor);
+              LabelT1.Caption := 'Sensor set - wrote ' + IntToStr(Vec4BtoInt(NewColor)) + ' as MetadataInteger';
+            end
+          else
+            begin
+              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
             end;
         end
     else
@@ -450,7 +489,9 @@ procedure TCastleApp.WindowOpen(Sender: TObject);
 begin
   {$ifdef cgeapp}with CastleApp do begin{$endif}
   GLIsReady := True;
-  AddSensor(Scene, NewColor);
+  // TODO: There's a real test for GL being ready (can't remember the call)
+  SetSensor(Scene, NewColor);
+  // Calling SetSensor after GL is ready so it can display a message
   {$ifdef cgeapp}end;{$endif}
 end;
 
@@ -469,7 +510,8 @@ begin
   if Event.IsKey(keyX) then
     begin
       TempImage := RecolorImage(MasterTexture, NewColor);
-      SaveImage(TempImage, 'castle-data:/exportedTextures/HoverRacer_temp.png');
+//      SaveImage(TempImage, 'castle-data:/exportedTextures/HoverRacer_temp.png');
+      Save3D(Scene.RootNode, 'data/scene.x3dv', 'Hover', 'HoverRacer.gltf', xeClassic);
       FreeAndNil(TempImage);
     end;
   {$endif}

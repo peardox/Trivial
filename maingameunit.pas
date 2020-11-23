@@ -1,7 +1,6 @@
 unit MainGameUnit;
 
 {$mode objfpc}{$H+}
-// {$define useTriangles}
 
 interface
 
@@ -84,7 +83,7 @@ var
 {$endif}
   LabelT1: TCastleLabel;
   LabelT2: TCastleLabel;
-  evt_t1, evt_t2, evt_tc: Integer;
+  evt_t1, evt_t2, evt_hc: Integer;
 
 {$ifdef cgeapp}
 procedure WindowBeforeRender(Sender: TUIContainer);
@@ -99,7 +98,6 @@ procedure WindowUpdate(Sender: TUIContainer);
 {$endif}
 
 function Vec4BtoInt(const AValue: TVector4Byte): Cardinal;
-function GetNodePath(const Node: TX3DNode; const CurrentPath: String = ''): String;
 
 implementation
 {$ifdef cgeapp}
@@ -109,7 +107,12 @@ uses GameInitialize;
 {$ifndef cgeapp}
 {$R *.lfm}
 {$endif}
-
+{
+*** Start of sensor related code ***
+}
+{
+Taken from example and slightly modified
+}
 procedure TMyEventListener.ReceivedTouchTime(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
 var
   Val: Double;
@@ -120,6 +123,9 @@ begin
   LabelT1.Caption := Format('touchTime %d : %f', [evt_t1, Val]);
 end;
 
+{
+Taken from example and slightly modified
+}
 procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
 var
   Val: Boolean;
@@ -130,8 +136,73 @@ begin
   LabelT2.Caption := Format('isActive %d : %s', [evt_t2, BoolToStr(Val, true)]);
 end;
 
-{ TCastleApp }
+{
+HoverClick - OnClick Handler
+}
+procedure TCastleApp.HoverClick(Sender: TObject);
+var
+  AColor: Cardinal;
+begin
+  if Sender is TTouchSensorNode then
+    begin
+      // Increment HoverClick counter
+      Inc(evt_hc);
+      // Find out the currnt color of the model
+      AColor := TTouchSensorNode(Sender).MetadataInteger['Color', 0];
+      // Report to screen
+      LabelClick.Caption := 'OnClick ' + IntToStr(evt_hc) + ' - ' + IntToHex(AColor, 6);
+      // Change color
+      PaintJob;
+      // Update Meta with new color
+      SetSensor(Scene, NewColor);
+    end;
+end;
 
+{
+SetSensor - Add a sensor to the model, set event handlers and attach a meta
+            containing the current model color as a MetaInteger.
+            If sensor already exists just update the MetaInteger.
+}
+procedure TCastleApp.SetSensor(AScene: TCastleScene; AColor: TVector4Byte);
+var
+  TransformNode: TTransformNode;
+  TouchSensor: TTouchSensorNode;
+begin
+  if not(AScene = nil) then
+    begin
+      TransformNode := AScene.RootNode.TryFindNodeByName(TTransformNode, 'HoverRacer', false) as TTransformNode;
+      if not (TransformNode = nil) then
+        begin
+          TouchSensor := TransformNode.TryFindNodeByName(TTouchSensorNode, 'TextureColor', false) as TTouchSensorNode;
+          if TouchSensor = nil then
+            begin
+              TouchSensor := TTouchSensorNode.Create('TextureColor');
+              TouchSensor.Enabled := true;
+              TouchSensor.Onclick := @HoverClick;
+              TouchSensor.EventTouchTime.AddNotification(@EventListener.ReceivedTouchTime);
+              TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
+              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
+              TransformNode.AddChildren(TouchSensor);
+              LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
+            end
+          else
+            begin
+              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
+              LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
+            end;
+        end
+    else
+      LabelT1.Caption := 'Sensor not set';
+    end;
+end;
+
+{
+*** End of sensor related code ***
+}
+
+{
+RecolorImage - Change White to passed color
+}
 function TCastleApp.RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4Byte): TRGBAlphaImage;
 var
   ImageOut: TRGBAlphaImage;
@@ -167,6 +238,9 @@ begin
   Result := ImageOut;
 end;
 
+{
+LoadMasterTexture - Load a texture that's going to be used multiple times
+}
 function TCastleApp.LoadMasterTexture(filename: String): TRGBAlphaImage;
 var
   Texture: TRGBAlphaImage;
@@ -188,79 +262,10 @@ begin
   Result := Texture;
 end;
 
-function GetNodePath(const Node: TX3DNode; const CurrentPath: String = ''): String;
-begin
-  if not (Node = nil) then
-    begin
-      if not(CurrentPath = EmptyStr) then
-        Result := Node.X3dName + ' -> ' + CurrentPath
-      else
-        Result := Node.X3dName;
-//      GetNodePath(Node.Parent, CurrentPath);
-    end;
-end;
-
-procedure TCastleApp.HoverClick(Sender: TObject);
-var
-  AColor: Cardinal;
-  {$ifdef useTriangles}
-  Triangle: PTriangle;
-  Node: TX3DNode;
-  Path: String;
-{$endif}
-begin
-  if Sender is TTouchSensorNode then
-    begin
-//      MenuValue := ExtractX3DTag(TTouchSensorNode(Sender).X3DName, 'MenuTouch_');
-      Inc(evt_tc);
-      {$ifdef useTriangles}
-      Triangle := Scene.PointingDeviceOverItem;
-      if not(Triangle = nil) and not(Triangle^.MaterialInfo = nil) then
-        begin
-        Node := Triangle^.MaterialInfo.Node;
-        Path := GetNodePath(Node);
-        end;
-      {$endif}
-      AColor := TTouchSensorNode(Sender).MetadataInteger['Color', 0];
-      LabelClick.Caption := 'OnClick ' + IntToStr(evt_tc) + ' - ' + IntToHex(AColor, 6);
-      PaintJob;
-      SetSensor(Scene, NewColor);
-    end;
-end;
-
-procedure TCastleApp.SetSensor(AScene: TCastleScene; AColor: TVector4Byte);
-var
-  TransformNode: TTransformNode;
-  TouchSensor: TTouchSensorNode;
-begin
-  if not(AScene = nil) then
-    begin
-      TransformNode := AScene.RootNode.TryFindNodeByName(TTransformNode, 'HoverRacer', false) as TTransformNode;
-      if not (TransformNode = nil) then
-        begin
-          TouchSensor := TransformNode.TryFindNodeByName(TTouchSensorNode, 'TextureColor', false) as TTouchSensorNode;
-          if TouchSensor = nil then
-            begin
-              TouchSensor := TTouchSensorNode.Create('TextureColor');
-              TouchSensor.Enabled := true;
-              TouchSensor.Onclick := @HoverClick;
-              TouchSensor.EventTouchTime.AddNotification(@EventListener.ReceivedTouchTime);
-              TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
-              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
-              TransformNode.AddChildren(TouchSensor);
-              LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
-            end
-          else
-            begin
-              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
-              LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
-            end;
-        end
-    else
-      LabelT1.Caption := 'Sensor not set';
-    end;
-end;
-
+{
+ChangeTexture - Changes the texture image used by the model to the recolored version
+                Makes a copy of the roughness/metal maps and assigns it to new material
+}
 function TCastleApp.ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;
 var
   PhysicalMaterialNode: TPhysicalMaterialNode;
@@ -289,6 +294,9 @@ begin
   end;
 end;
 
+{
+CreateLabel - Create a label, set it's position and style
+}
 procedure TCastleApp.CreateLabel(var objLabel: TCastleLabel; const Line: Integer; const BottomUp: Boolean = True);
 begin
   objLabel := TCastleLabel.Create(Application);
@@ -304,11 +312,19 @@ begin
   Window.Controls.InsertFront(objLabel);
 end;
 
+{
+Vec4BtoInt - Convert TVector4Byte to Unsigned 32bit Integer
+}
 function Vec4BtoInt(const AValue: TVector4Byte): Cardinal;
 begin
   Result := (AValue.X << 16) or (AValue.Y << 8) or AValue.Z;
 end;
 
+{
+Paintjob - Create a new version of the master texture and recolor it
+           then apply it to the model
+           Report info to screen
+}
 procedure TCastleApp.PaintJob;
 var
   TempImage: TRGBAlphaImage;
@@ -349,6 +365,10 @@ begin
 
 end;
 
+{
+LoadScene - Load the initial model, set a viewport and a load of other one-off
+            things
+}
 procedure TCastleApp.LoadScene(Sender: TObject; filename: String);
 var
   TempImage: TRGBAlphaImage;
@@ -397,6 +417,9 @@ begin
   CreateLabel(LabelRender, 0);
 end;
 
+{
+RunCGEApplication - Shared initialization
+}
 procedure TCastleApp.RunCGEApplication(Sender: TObject);
 begin
   DoingRecolor := False;
@@ -409,7 +432,7 @@ begin
   Scene := nil;
   evt_t1 := 0;
   evt_t2 := 0;
-  evt_tc := 0;
+  evt_hc := 0;
   MasterTexture := nil;
   MasterMetalTexture := nil;
   Window.Container.UIScaling := usDpiScale;
@@ -418,12 +441,18 @@ begin
   LoadScene(Sender, 'castle-data:/HoverRacer.gltf');
 end;
 
+{
+KillCGEApplication - Shared tidy up
+}
 procedure TCastleApp.KillCGEApplication(Sender: TObject);
 begin
   FreeAndNil(MasterTexture);
   FreeAndNil(MasterMetalTexture);
 end;
 
+{
+Lazarus only code
+}
 {$ifndef cgeapp}
 procedure TCastleApp.FormCreate(Sender: TObject);
 begin
@@ -437,6 +466,9 @@ begin
 end;
 {$endif}
 
+{
+Lazarus / Standalone versions of all event handlers
+}
 {$ifdef cgeapp}
 procedure WindowBeforeRender(Sender: TUIContainer);
 {$else}

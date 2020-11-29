@@ -21,7 +21,6 @@ uses
 type
 
   TMyEventListener = class(TComponent)
-    procedure ReceivedTouchTime(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
     procedure ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
   end;
 
@@ -66,7 +65,7 @@ type
     EventListener: TMyEventListener;
     LabelT1: TCastleLabel;
     LabelT2: TCastleLabel;
-    evt_t1, evt_t2, evt_hc: Integer;
+    evt_t2: Integer;
   public
     procedure RunCGEApplication(Sender: TObject);
     procedure KillCGEApplication(Sender: TObject);
@@ -75,7 +74,6 @@ type
     function ChangeTexture(const Node: TX3DRootNode; const Texture: TCastleImage): TVector3Cardinal;
     function RecolorImage(const ImageIn: TRGBAlphaImage; const NewRGB: TVector4Byte): TRGBAlphaImage;
     function LoadMasterTexture(filename: String): TRGBAlphaImage;
-    procedure HoverClick(Sender: TObject);
     procedure SetSensor(AScene: TCastleScene; AColor: TVector4Byte);
     procedure PaintJob;
   end;
@@ -113,30 +111,6 @@ uses GameInitialize;
 {
 Taken from example and slightly modified
 }
-procedure TMyEventListener.ReceivedTouchTime(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
-var
-  AColor: Cardinal;
-  Val: Double;
-begin
-  with Owner as TCastleApp do
-    begin
-      // Need to get to the owning Sensor object
-      Val := (Value as TSFTime).Value;
-      Inc(evt_t1);
-      if Event.ParentNode is TTouchSensorNode then
-        begin
-        // Find out the currnt color of the model
-        AColor := TTouchSensorNode(Event.ParentNode).MetadataInteger['Color', 0];
-        LabelT1.Caption := Format('touchTime %d : %s', [evt_t1, IntToHex(AColor, 6)]);
-        end
-      else
-        LabelT1.Caption := Format('touchTime %d : %f', [evt_t1, Val]);
-    end;
-end;
-
-{
-Taken from example and slightly modified
-}
 procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
 var
   AColor: Cardinal;
@@ -145,41 +119,21 @@ begin
   with Owner as TCastleApp do
     begin
       // Need to get to the owning Sensor object
-      Val := (Value as TSFBool).Value;
-      Inc(evt_t2);
       if Event.ParentNode is TTouchSensorNode then
         begin
-        // Find out the currnt color of the model
-        AColor := TTouchSensorNode(Event.ParentNode).MetadataInteger['Color', 0];
-        LabelT2.Caption := Format('isActive %d : %s', [evt_t2, IntToHex(AColor, 6)]);
+        Val := (Value as TSFBool).Value;
         if Val then
           begin
+          // Find out the currnt color of the model
+          AColor := TTouchSensorNode(Event.ParentNode).MetadataInteger['Color', 0];
+          LabelT2.Caption := Format('isActive %d : %s', [evt_t2, IntToHex(AColor, 6)]);
+          Inc(evt_t2);
           // Change color
           PaintJob;
           // Update Meta with new color
           SetSensor(Scene, NewColor);
           end;
-        end
-    else
-      LabelT2.Caption := Format('isActive %d : %s', [evt_t2, BoolToStr(Val, true)]);
-  end;
-end;
-
-{
-HoverClick - OnClick Handler
-}
-procedure TCastleApp.HoverClick(Sender: TObject);
-var
-  AColor: Cardinal;
-begin
-  if Sender is TTouchSensorNode then
-    begin
-      // Increment HoverClick counter
-      Inc(evt_hc);
-      // Find out the currnt color of the model
-      AColor := TTouchSensorNode(Sender).MetadataInteger['Color', 0];
-      // Report to screen
-      LabelClick.Caption := 'OnClick ' + IntToStr(evt_hc) + ' - ' + IntToHex(AColor, 6);
+        end;
     end;
 end;
 
@@ -203,8 +157,6 @@ begin
             begin
               TouchSensor := TTouchSensorNode.Create('TextureColor');
               TouchSensor.Enabled := true;
-              TouchSensor.Onclick := @HoverClick;
-              TouchSensor.EventTouchTime.AddNotification(@EventListener.ReceivedTouchTime);
               TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
               TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
               TransformNode.AddChildren(TouchSensor);
@@ -455,9 +407,7 @@ begin
   LastTime := 0;
   ColorChoice := 0;
   Scene := nil;
-  evt_t1 := 0;
   evt_t2 := 0;
-  evt_hc := 0;
   MasterTexture := nil;
   MasterMetalTexture := nil;
   Window.Container.UIScaling := usDpiScale;
@@ -578,10 +528,16 @@ begin
   if Event.IsKey(keyX) then
     begin
       TempImage := RecolorImage(MasterTexture, NewColor);
-//      SaveImage(TempImage, 'castle-data:/exportedTextures/HoverRacer_temp.png');
-      Save3D(Scene.RootNode, 'data/scene.x3dv', 'Hover', 'HoverRacer.gltf', xeClassic);
+      Save3D(Scene.RootNode, 'data/exportedModels/scene_' + IntToStr(evt_t2) + '.x3dv', 'Hover', 'HoverRacer.gltf', xeClassic);
       FreeAndNil(TempImage);
     end;
+
+    if Event.IsKey(keyT) then
+      begin
+        TempImage := RecolorImage(MasterTexture, NewColor);
+        SaveImage(TempImage, 'castle-data:/exportedTextures/HoverRacer_' + IntToHex(Vec4BtoInt(NewColor), 6) + '.png');
+        FreeAndNil(TempImage);
+      end;
   {$endif}
 
   if Event.IsKey(keySpace) then

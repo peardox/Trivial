@@ -11,8 +11,8 @@
 *.o
 *.or
 *.a
+*.obj
 AndroidSigningProperties.txt
-data/scene.x3dv
 
 # Heap trace
 heap.trc
@@ -31,10 +31,20 @@ backup/
 *.bak
 lib/
 castle-engine-output/
+data/exportedModels/*x3dv
+data/exportedTextures/*png
 
 # Application bundle for Mac OS
 *.app/
 
 # Linux / Mac build 
-gltftree
+HoverApp.exe
+HoverLaz.exe
+HoverApp
+HoverLaz
+
+# DLLs
+zlib1.dll
+libpng14-14.dll
+freetype-6.dll
 

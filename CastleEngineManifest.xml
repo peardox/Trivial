@@ -4,7 +4,7 @@
   standalone_source="HoverApp.lpr"
   game_units="GameInitialize"
   caption="Hover Mobile App"
-  qualified_name="com.peardox.hover.demo">
+  qualified_name="com.peardox.hover">
   <package>
     <include path="README.txt" />
   </package>

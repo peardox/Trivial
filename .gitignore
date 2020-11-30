@@ -1,4 +1,5 @@
 # Lazarus compiler-generated binaries (safe to delete)
+
 *.exe
 *.dll
 *.so
@@ -13,6 +14,7 @@
 *.a
 *.obj
 AndroidSigningProperties.txt
+*Copy*
 
 # Heap trace
 heap.trc

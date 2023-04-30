@@ -21,7 +21,7 @@ uses
 type
 
   TMyEventListener = class(TComponent)
-    procedure ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
+    procedure ReceivedIsActive(const Event: TX3DEvent; const Value: TX3DField; const Time: TX3DTime);
   end;
 
   { TCastleApp }
@@ -44,7 +44,7 @@ type
   TCastleApp = class(TWindowContainer)
   {$endif}
   private
-    Viewport: TCastleViewport;
+    Viewport: TCastleAutoNavigationViewport;
     Scene: TCastleScene;
     ColorChoice: Integer;
     MasterTexture: TRGBAlphaImage;
@@ -111,7 +111,7 @@ uses GameInitialize;
 {
 Taken from example and slightly modified
 }
-procedure TMyEventListener.ReceivedIsActive(Event: TX3DEvent; Value: TX3DField; const Time: TX3DTime);
+procedure TMyEventListener.ReceivedIsActive(const Event: TX3DEvent; const Value: TX3DField; const Time: TX3DTime);
 var
   AColor: Cardinal;
   Val: Boolean;
@@ -125,7 +125,7 @@ begin
         if Val then
           begin
           // Find out the currnt color of the model
-          AColor := TTouchSensorNode(Event.ParentNode).MetadataInteger['Color', 0];
+          AColor := TTouchSensorNode(Event.ParentNode).MetadataInteger['Color'];
           LabelT2.Caption := Format('isActive %d : %s', [evt_t2, IntToHex(AColor, 6)]);
           Inc(evt_t2);
           // Change color
@@ -158,13 +158,13 @@ begin
               TouchSensor := TTouchSensorNode.Create('TextureColor');
               TouchSensor.Enabled := true;
               TouchSensor.EventIsActive.AddNotification(@EventListener.ReceivedIsActive);
-              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
+              TouchSensor.MetadataInteger['Color'] := Vec4BtoInt(NewColor);
               TransformNode.AddChildren(TouchSensor);
               LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
             end
           else
             begin
-              TouchSensor.MetadataInteger['Color', 0] := Vec4BtoInt(NewColor);
+              TouchSensor.MetadataInteger['Color'] := Vec4BtoInt(NewColor);
               LabelT1.Caption := 'Sensor set - ' + IntToHex(Vec4BtoInt(NewColor), 6);
             end;
         end
@@ -351,7 +351,7 @@ var
   TempImage: TRGBAlphaImage;
 begin
   // Set up the main viewport
-  Viewport := TCastleViewport.Create(Application);
+  Viewport := TCastleAutoNavigationViewport.Create(Application);
   // Use all the viewport
   Viewport.FullSize := true;
   // Automatically position the camera
